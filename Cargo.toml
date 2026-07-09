@@ -1,0 +1,49 @@
+[package]
+name = "outpost"
+version = "0.1.0"
+edition = "2021"
+description = "CI security gate for a domain's front-door hygiene: DNSSEC, TLS/certificate chain, Certificate Transparency, and HTTP security headers."
+license = "MIT"
+repository = "https://github.com/rewired89/outpost"
+readme = "README.md"
+keywords = ["security", "dnssec", "tls", "ci", "certificate-transparency"]
+categories = ["command-line-utilities"]
+
+[lib]
+name = "outpost"
+path = "src/lib.rs"
+
+[[bin]]
+name = "outpost"
+path = "src/main.rs"
+
+[dependencies]
+clap = { version = "4", features = ["derive"] }
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+toml = "0.8"
+anyhow = "1"
+thiserror = "2"
+chrono = { version = "0.4", default-features = false, features = ["clock", "serde"] }
+sha2 = "0.10"
+hex = "0.4"
+tokio = { version = "1", features = ["rt-multi-thread", "macros", "net", "time"] }
+hickory-resolver = { version = "0.26", features = ["dnssec-ring", "system-config", "tokio"] }
+rustls = { version = "0.23", default-features = false, features = ["std", "ring", "tls12"] }
+rustls-pki-types = "1"
+webpki-roots = "1"
+tokio-rustls = { version = "0.26", default-features = false, features = ["ring", "tls12"] }
+x509-parser = "0.17"
+reqwest = { version = "0.12", default-features = false, features = ["rustls-tls-webpki-roots", "json"] }
+
+[dev-dependencies]
+tempfile = "3"
+wiremock = "0.6"
+rcgen = "0.13"
+
+[profile.release]
+opt-level = "z"
+lto = true
+strip = true
+codegen-units = 1
+panic = "abort"

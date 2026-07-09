@@ -1,0 +1,26 @@
+# Demo configuration used by .github/workflows/outpost.yml in this repo, to
+# show `outpost` actually gating a build against real domains.
+#
+# This is NOT meant to be used as-is in your own project -- copy
+# `outpost.example.toml` instead, which is annotated field-by-field. This
+# file intentionally scans a couple of large, well-run public domains so the
+# example workflow in this repo has something real to check without asking
+# you to hand us a domain to monitor.
+
+state_file = "outpost.state.json"
+
+[defaults.ct]
+allowed_issuers = [
+  "Let's Encrypt",
+  "Google Trust Services",
+  "DigiCert Inc",
+  "Sectigo Limited",
+  "Cloudflare, Inc.",
+  "Amazon",
+]
+
+[[domains]]
+name = "cloudflare.com"
+
+[[domains]]
+name = "github.com"

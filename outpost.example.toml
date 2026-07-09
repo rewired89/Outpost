@@ -1,0 +1,79 @@
+# Example configuration for `outpost`.
+#
+# Copy this file to `outpost.toml`, replace the domains, and run:
+#
+#   outpost ci --config outpost.toml
+#
+# Every field below shows its default value in a comment; you only need to
+# set the fields you want to change from the default.
+
+# Where the Certificate Transparency "last known good" baseline is persisted
+# between runs. See the README section "Persisting CT baseline state in CI"
+# -- on most CI systems this needs `actions/cache` (or equivalent) pointed at
+# this path, since a fresh runner has no memory of previous runs.
+state_file = "outpost.state.json"
+
+# ---------------------------------------------------------------------------
+# [defaults] apply to every domain below unless a domain overrides them.
+# ---------------------------------------------------------------------------
+
+[defaults.checks]
+dns = true       # DNSSEC validation
+tls = true       # TLS version + certificate chain + expiry
+ct = true        # Certificate Transparency log diffing
+headers = true   # HTTP security headers
+
+[defaults.tls]
+min_version = "1.2"          # "1.2" or "1.3" -- the minimum negotiated version to accept
+expiry_warning_days = 14     # fail if the cert expires within this many days
+allow_weak_ciphers = false   # no-op while rustls is the transport; see README
+
+[defaults.headers]
+require = [
+  "strict-transport-security",
+  "x-content-type-options",
+  "referrer-policy",
+]
+hsts_min_max_age_seconds = 15552000     # 180 days
+hsts_require_include_subdomains = true
+hsts_require_preload = false
+require_frame_protection = true          # X-Frame-Options DENY/SAMEORIGIN, or CSP frame-ancestors
+timeout_seconds = 10
+
+[defaults.ct]
+# CA organization names, matched as case-insensitive substrings against
+# crt.sh's `issuer_name` field (e.g. "C=US, O=Let's Encrypt, CN=R3"). Leave
+# empty to disable issuer allowlisting (new CT entries will only produce a
+# warning, not a failure -- see README).
+allowed_issuers = ["Let's Encrypt", "Google Trust Services", "DigiCert Inc", "Sectigo Limited"]
+# SHA-256 fingerprints (hex, no colons) of certificates that are always
+# trusted regardless of issuer. Usually left empty; use for high-value
+# domains where you want to pin the exact leaf certificate.
+pinned_fingerprints = []
+fail_on_unknown_issuer = true
+timeout_seconds = 15
+crtsh_url = "https://crt.sh"
+
+# ---------------------------------------------------------------------------
+# Domains to scan. `name` is required; everything else overrides [defaults].
+# ---------------------------------------------------------------------------
+
+[[domains]]
+name = "example.com"
+
+[[domains]]
+name = "api.example.com"
+# This subdomain is fronted by a different CDN with its own cert lifecycle.
+[domains.tls]
+min_version = "1.3"
+[domains.ct]
+allowed_issuers = ["DigiCert Inc"]
+
+[[domains]]
+name = "status.example.com"
+# A status page hosted on a third-party SaaS product that doesn't set every
+# header we'd otherwise require.
+[domains.checks]
+ct = false
+[domains.headers]
+require = ["strict-transport-security"]

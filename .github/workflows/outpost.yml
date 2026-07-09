@@ -1,0 +1,67 @@
+# Example: use `outpost` as a CI security gate on your own domains.
+#
+# This workflow is self-contained and runs in this repo as a working demo:
+# it builds `outpost` from source and gates on the domains listed in
+# `outpost.toml` at the repo root (cloudflare.com, github.com -- picked
+# because they're large, well-run public domains, not because you should
+# monitor them). If any domain's DNSSEC, TLS/certificate, Certificate
+# Transparency, or HTTP security header posture has drifted from the
+# configured baseline, this job fails (nonzero exit).
+#
+# To use this in YOUR repository:
+#   1. Copy this file to `.github/workflows/outpost.yml`.
+#   2. Copy `outpost.example.toml` to `outpost.toml` and point it at your
+#      own domain(s) -- see that file for every field's meaning.
+#   3. Replace the "Build outpost" step below with either
+#      `cargo install outpost` or a pinned release binary download (see the
+#      README's install instructions); building from source on every run is
+#      only reasonable here because this repo *is* outpost's own source.
+#
+# This workflow persists the Certificate Transparency "last known good"
+# baseline between runs with actions/cache, since GitHub-hosted runners are
+# ephemeral and have no memory of previous jobs on their own. Without this,
+# every run would look like "first run" to the CT check -- see the README
+# section "Persisting CT baseline state in CI".
+name: outpost security gate
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  schedule:
+    # Certs and CT logs drift even when this repo's code doesn't -- run daily too.
+    - cron: "17 4 * * *"
+  workflow_dispatch:
+
+jobs:
+  front-door-hygiene:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install Rust
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Cache cargo registry and build artifacts
+        uses: Swatinem/rust-cache@v2
+
+      - name: Build outpost
+        run: cargo build --release --locked
+
+      - name: Restore CT baseline state
+        uses: actions/cache@v4
+        with:
+          path: outpost.state.json
+          key: outpost-state-${{ github.repository }}
+          restore-keys: |
+            outpost-state-${{ github.repository }}
+
+      - name: Run outpost
+        run: ./target/release/outpost ci --config outpost.toml
+
+      - name: Save CT baseline state
+        if: always()
+        uses: actions/cache/save@v4
+        with:
+          path: outpost.state.json
+          key: outpost-state-${{ github.repository }}
