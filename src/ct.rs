@@ -95,6 +95,21 @@ impl BaselineState {
     }
 }
 
+/// reqwest's `Display` impl for its top-level error often just says
+/// "error sending request for url (...)" -- the actually useful detail (DNS
+/// resolution failure, TLS handshake error, connection refused, timeout) is
+/// in the `source()` chain. Walk it so a user staring at a `Skip` on the CT
+/// check has something to act on instead of a truncated message.
+fn describe_error(e: &dyn std::error::Error) -> String {
+    let mut parts = vec![e.to_string()];
+    let mut source = e.source();
+    while let Some(s) = source {
+        parts.push(s.to_string());
+        source = s.source();
+    }
+    parts.join(" -> caused by: ")
+}
+
 async fn fetch_entries(domain: &str, cfg: &CtConfig) -> Result<Vec<CrtShEntry>, String> {
     let client = reqwest::Client::builder()
         .timeout(Duration::from_secs(cfg.timeout_seconds))
@@ -111,7 +126,7 @@ async fn fetch_entries(domain: &str, cfg: &CtConfig) -> Result<Vec<CrtShEntry>, 
         .get(&url)
         .send()
         .await
-        .map_err(|e| format!("request to crt.sh failed: {e}"))?;
+        .map_err(|e| format!("request to crt.sh failed: {}", describe_error(&e)))?;
 
     if !response.status().is_success() {
         return Err(format!("crt.sh returned HTTP {}", response.status()));
