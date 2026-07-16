@@ -28,9 +28,6 @@ on:
   push:
     branches: [main]
   pull_request:
-  schedule:
-    # Certs and CT logs drift even when this repo's code doesn't -- run daily too.
-    - cron: "17 4 * * *"
   workflow_dispatch:
 
 jobs:
