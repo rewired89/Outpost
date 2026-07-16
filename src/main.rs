@@ -256,6 +256,19 @@ async fn main() -> ExitCode {
                 }
             };
 
+            if plan.is_noop() {
+                println!(
+                    "{} already has these headers -- nothing to change.",
+                    plan.file_path.display()
+                );
+                println!(
+                    "(The live site at {domain} doesn't have them yet -- this just means an \
+                     earlier run already wrote the fix locally. If a pull request is still \
+                     open from that run, that's the one to merge.)"
+                );
+                return ExitCode::SUCCESS;
+            }
+
             println!("Proposed changes to {}:\n", plan.file_path.display());
             for f in &plan.fixes {
                 println!("  + {}: {}", f.header, f.value);

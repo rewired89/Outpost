@@ -175,11 +175,17 @@ fn run_git(repo_path: &Path, args: &[&str]) -> Result<(), FixError> {
         .current_dir(repo_path)
         .output()?;
     if !output.status.success() {
-        return Err(FixError::Git(format!(
-            "git {}: {}",
-            args.join(" "),
-            String::from_utf8_lossy(&output.stderr)
-        )));
+        // git puts some failure explanations (e.g. "nothing to commit") on
+        // stdout rather than stderr -- show both, or a real error can come
+        // back looking blank, which is worse than no error message at all.
+        let stderr = String::from_utf8_lossy(&output.stderr);
+        let stdout = String::from_utf8_lossy(&output.stdout);
+        let detail = match (stderr.trim().is_empty(), stdout.trim().is_empty()) {
+            (false, _) => stderr.trim().to_string(),
+            (true, false) => stdout.trim().to_string(),
+            (true, true) => format!("exit status {}", output.status),
+        };
+        return Err(FixError::Git(format!("git {}: {}", args.join(" "), detail)));
     }
     Ok(())
 }
@@ -218,6 +224,23 @@ mod tests {
         assert!(plan.before.contains("X-Content-Type-Options"));
         assert!(plan.after.contains("X-Content-Type-Options"));
         assert!(plan.after.contains("X-Frame-Options: DENY"));
+    }
+
+    #[test]
+    fn plan_is_a_noop_when_the_file_already_has_the_suggested_fixes() {
+        // The exact scenario a real run hit: a prior attempt already wrote
+        // the fixed _headers file to disk before failing later on (a
+        // network error, a bad token, whatever). suggest_fixes() still
+        // returns the same fixes on retry (it's computed from the live
+        // site, not the local file), but applying them to a file that
+        // already has them produces byte-identical output -- plan() must
+        // recognize that as a no-op so the CLI doesn't try to commit
+        // nothing and get a confusing git failure.
+        let dir = tempfile::tempdir().unwrap();
+        std::fs::write(dir.path().join("_headers"), "/*\n  X-Frame-Options: DENY\n").unwrap();
+        let plan = plan(dir.path(), "_headers", &[fix("X-Frame-Options", "DENY")]).unwrap();
+        assert!(!plan.fixes.is_empty());
+        assert!(plan.is_noop());
     }
 
     #[test]
