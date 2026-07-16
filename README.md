@@ -1,9 +1,13 @@
 # Outpost
 
-Outpost is a CI security gate that checks a domain's **front-door hygiene**
--- DNSSEC, TLS/certificate chain, Certificate Transparency log status, and
-HTTP security headers -- and fails the build (nonzero exit code) if anything
-has drifted from an expected baseline.
+[![CI](https://github.com/rewired89/Outpost/actions/workflows/ci.yml/badge.svg)](https://github.com/rewired89/Outpost/actions/workflows/ci.yml)
+[![outpost security gate](https://github.com/rewired89/Outpost/actions/workflows/outpost.yml/badge.svg)](https://github.com/rewired89/Outpost/actions/workflows/outpost.yml)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](./LICENSE)
+
+Outpost is a free, open-source CI security gate that checks a domain's
+**front-door hygiene** -- DNSSEC, TLS/certificate chain, Certificate
+Transparency log status, and HTTP security headers -- and fails the build
+(nonzero exit code) if anything has drifted from an expected baseline.
 
 Most application security tooling looks at code. Outpost looks at the
 network perimeter in front of the code: DNS resolution integrity, transport
@@ -302,3 +306,11 @@ what to change to gate your own domains in your own repository: swap the
 "build from source" step for `cargo install outpost` or a release binary
 download, point the config at your domains, and keep the `actions/cache`
 step so the CT baseline survives between runs.
+
+## Contributing
+
+Outpost is open source (MIT licensed) and built by a solo developer -- issues,
+questions, and pull requests are genuinely welcome. See
+[`CONTRIBUTING.md`](./CONTRIBUTING.md) for how to build, test, and submit a
+change, and [`CLAUDE.md`](./CLAUDE.md) for the deeper design reasoning behind
+each module if you're planning something non-trivial.
