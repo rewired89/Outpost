@@ -1,10 +1,9 @@
 # Example: use `outpost` as a CI security gate on your own domains.
 #
 # This workflow is self-contained and runs in this repo as a working demo:
-# it builds `outpost` from source and gates on the domains listed in
-# `outpost.toml` at the repo root (cloudflare.com, github.com -- picked
-# because they're large, well-run public domains, not because you should
-# monitor them). If any domain's DNSSEC, TLS/certificate, Certificate
+# it builds `outpost` from source and gates on the domain listed in
+# `outpost.toml` at the repo root (cloudflare.com -- see that file's
+# comments for why). If any domain's DNSSEC, TLS/certificate, Certificate
 # Transparency, or HTTP security header posture has drifted from the
 # configured baseline, this job fails (nonzero exit).
 #

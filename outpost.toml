@@ -1,11 +1,18 @@
 # Demo configuration used by .github/workflows/outpost.yml in this repo, to
-# show `outpost` actually gating a build against real domains.
+# show `outpost` actually gating a build against a real domain.
 #
 # This is NOT meant to be used as-is in your own project -- copy
-# `outpost.example.toml` instead, which is annotated field-by-field. This
-# file intentionally scans a couple of large, well-run public domains so the
-# example workflow in this repo has something real to check without asking
-# you to hand us a domain to monitor.
+# `outpost.example.toml` instead, which is annotated field-by-field.
+#
+# Domain choice: cloudflare.com only. It's the domain hickory-resolver's own
+# upstream test suite uses as its canonical "known to validate as DNSSEC
+# Secure" target, and Cloudflare dogfoods modern TLS/HSTS on its own
+# marketing domain -- see the README's "Testing" section for the full
+# reasoning. github.com was tried here too and dropped: live testing showed
+# it genuinely has no DNSSEC deployed, which would fail this gate on every
+# single run, forever -- a correct finding about github.com, but a
+# permanently red CI badge is a bad first impression for a demo whose whole
+# point is showing the tool passing cleanly.
 
 state_file = "outpost.state.json"
 
@@ -21,6 +28,3 @@ allowed_issuers = [
 
 [[domains]]
 name = "cloudflare.com"
-
-[[domains]]
-name = "github.com"

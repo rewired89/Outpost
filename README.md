@@ -11,6 +11,19 @@ encryption, certificate issuance, and browser-enforced security policy. It's
 meant to run as one step in CI, on every deploy, so nobody has to remember to
 check these by hand.
 
+## Try it in two minutes
+
+```sh
+git clone https://github.com/rewired89/outpost.git
+cd outpost
+cargo build --release
+./target/release/outpost scan cloudflare.com
+```
+
+No config file, no setup, no account. That last command hits a real domain
+over the real internet and prints a real pass/fail report. Point it at any
+domain you want a straight answer about.
+
 ## The front-door chain
 
 A user reaching your site has to survive four independent trust decisions
@@ -256,8 +269,8 @@ Test tiers:
 
 [`.github/workflows/outpost.yml`](./.github/workflows/outpost.yml) is a
 working example in this repo (it builds Outpost from source and gates on
-`cloudflare.com`/`github.com` as demo targets) that also documents, in
-comments, exactly what to change to gate your own domains in your own
-repository: swap the "build from source" step for `cargo install outpost` or
-a release binary download, point the config at your domains, and keep the
-`actions/cache` step so the CT baseline survives between runs.
+`cloudflare.com` as a demo target) that also documents, in comments, exactly
+what to change to gate your own domains in your own repository: swap the
+"build from source" step for `cargo install outpost` or a release binary
+download, point the config at your domains, and keep the `actions/cache`
+step so the CT baseline survives between runs.

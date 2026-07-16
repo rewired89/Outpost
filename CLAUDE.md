@@ -98,6 +98,23 @@ Keep that split when adding new checks or refactoring `main.rs`.
   separately (extra crt.sh round trips per entry, worse rate-limit
   exposure) -- think about that tradeoff before doing it, don't just wire it
   up.
+- **Surface the real cause of a network error, not reqwest's top-level
+  message.** `ct::describe_error` walks the `source()` chain instead of just
+  printing `{e}`, because reqwest's `Display` for a failed request is often
+  just "error sending request for url (...)" with the actually useful
+  detail (DNS failure, TLS error, HTTP status) buried in `.source()`. This
+  came from a real live run where a vague `Skip` message was undiagnosable
+  until this fix landed. Apply the same pattern anywhere else a network
+  error gets turned into a report string.
+- **The demo `outpost.toml` at the repo root scans `cloudflare.com` only --
+  don't add `github.com` back to it.** It was there originally and got
+  removed after a live run confirmed github.com genuinely has no DNSSEC
+  deployed, which would fail this repo's own demo CI workflow on every
+  single run, forever. That's a correct finding about github.com, not a bug
+  -- but a permanently red Actions badge on the tool's own demo is a bad
+  first impression for anyone evaluating whether to try it. If you add more
+  demo domains, verify with a live run first that they pass all four checks
+  cleanly.
 
 ## Testing conventions
 
