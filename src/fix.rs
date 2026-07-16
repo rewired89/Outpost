@@ -88,7 +88,15 @@ pub async fn apply_and_open_pr(
         .unwrap_or(&plan.file_path);
     let branch = format!("outpost/fix-headers-{}", domain.replace('.', "-"));
 
-    run_git(repo_path, &["checkout", "-b", &branch])?;
+    // `-B` (not `-b`) resets the branch to the current HEAD if it already
+    // exists, instead of erroring -- this branch name is deterministic per
+    // domain, so a retry after any earlier failure (bad token, network
+    // blip, whatever) should just redo it, not get stuck forever. Same
+    // reasoning for `--force` on the push: only Outpost ever writes to its
+    // own `outpost/fix-headers-*` branches, so overwriting a stale one from
+    // a failed prior attempt is exactly what a retry should do -- this is
+    // not a branch a human is expected to have based other work on.
+    run_git(repo_path, &["checkout", "-B", &branch])?;
     run_git(repo_path, &["add", &relative_path.to_string_lossy()])?;
     run_git(
         repo_path,
@@ -98,7 +106,7 @@ pub async fn apply_and_open_pr(
             &format!("outpost: fix security headers for {domain}"),
         ],
     )?;
-    run_git(repo_path, &["push", "-u", "origin", &branch])?;
+    run_git(repo_path, &["push", "-u", "origin", &branch, "--force"])?;
 
     let client = reqwest::Client::builder()
         .user_agent(concat!("outpost/", env!("CARGO_PKG_VERSION")))
