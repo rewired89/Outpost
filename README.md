@@ -92,6 +92,31 @@ individual checks for that one invocation; `--tls-min-version 1.2|1.3` and
 config file; `--state-file <path>` controls where CT baseline state is read
 from and written to (default `outpost.state.json`).
 
+### Proposing a fix, not just reporting one
+
+```sh
+# Dry run: shows exactly what would change, touches nothing.
+outpost fix example.com --repo-path .
+
+# Opens a real pull request with that exact change.
+GITHUB_TOKEN=... outpost fix example.com --repo-path . --yes --github-repo you/example-site
+```
+
+`outpost fix` only covers HTTP security headers, and only for sites using a
+`_headers` file (the Netlify / Cloudflare Pages convention). That's a
+deliberate, narrow scope: Outpost has no write access to your server, your
+DNS, or your certificate authority, and it never will -- a checker with the
+power to change what it's checking stops being a trustworthy, independent
+auditor. Headers are the one finding with a config file simple and
+unambiguous enough to patch safely and propose as an ordinary,
+human-reviewed pull request. DNS, TLS, and CT findings still just get plain
+guidance text in the report; there's no safe automated fix for those.
+
+`fix` is dry-run by default -- it prints the full diff and changes nothing.
+Add `--yes` and `--github-repo owner/repo` (with a `GITHUB_TOKEN` in the
+environment) to actually write the file, push a branch, and open the pull
+request. It never merges anything.
+
 ### Exit codes
 
 - `0`: every check passed (warnings and skips are allowed).
@@ -213,14 +238,17 @@ tests can exercise each module directly:
 
 ```
 src/
-  lib.rs        module wiring (pub mod ...)
-  main.rs       CLI (clap): `scan` and `ci` subcommands, orchestration, exit codes
-  config.rs     outpost.toml schema, parsing, per-domain default/override resolution
-  dns.rs        DNSSEC check (hickory-resolver, dnssec-ring feature)
-  tls.rs        TLS/certificate chain check (rustls + webpki-roots + x509-parser)
-  ct.rs         Certificate Transparency check (crt.sh) + baseline state persistence
-  headers.rs    HTTP security header check (reqwest)
-  report.rs     shared result types, human-readable + JSON rendering, exit code logic
+  lib.rs          module wiring (pub mod ...)
+  main.rs         CLI (clap): `scan`, `ci`, `fix` subcommands, orchestration, exit codes
+  config.rs       outpost.toml schema, parsing, per-domain default/override resolution
+  dns.rs          DNSSEC check (hickory-resolver, dnssec-ring feature)
+  tls.rs          TLS/certificate chain check (rustls + webpki-roots + x509-parser)
+  ct.rs           Certificate Transparency check (crt.sh) + baseline state persistence
+  headers.rs      HTTP security header check (reqwest) + suggest_fixes() for `fix`
+  headers_file.rs pure patcher for the Netlify/Cloudflare Pages `_headers` file format
+  fix.rs          `outpost fix` orchestration: plan a change, then (only with --yes)
+                  write it, commit, push, and open a pull request via GitHub's API
+  report.rs       shared result types, human-readable + JSON rendering, exit code logic
 ```
 
 Each check module exposes a pure, network-free `evaluate()` (or

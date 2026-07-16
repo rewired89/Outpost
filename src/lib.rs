@@ -6,6 +6,8 @@
 pub mod config;
 pub mod ct;
 pub mod dns;
+pub mod fix;
 pub mod headers;
+pub mod headers_file;
 pub mod report;
 pub mod tls;

@@ -69,10 +69,22 @@ Keep that split when adding new checks or refactoring `main.rs`.
   `DomainReport`, `Report`. Only `Fail` fails the build
   (`Report::has_failure`); `Skip` must never be conflated with `Pass` in any
   new rendering code.
-- `src/main.rs` -- clap CLI (`scan`, `ci`), orchestration
+- `src/main.rs` -- clap CLI (`scan`, `ci`, `fix`), orchestration
   (`run_domain`: TLS runs first per domain so its leaf cert DER is available
   to the CT check without a second connection), exit codes (0 pass / 1
   check failure / 2 config load error).
+- `src/headers_file.rs` -- pure patcher for the Netlify/Cloudflare Pages
+  `_headers` file format. `apply_fixes(existing, fixes)` parses into
+  path-pattern blocks, patches only the `/*` (site-wide) block, and leaves
+  every other block byte-for-byte untouched. No I/O; `fix.rs` does the
+  reading and writing.
+- `src/fix.rs` -- `outpost fix` orchestration. `plan()` is pure-ish (reads a
+  file, computes new contents, never writes) and safe to call unconditionally;
+  `apply_and_open_pr()` is the only function in the crate that writes to disk,
+  shells out to `git`, or calls GitHub's API, and `main.rs` only calls it when
+  the user passed `--yes`. Deliberately scoped to headers only -- see the
+  module doc comment and the "Outpost never gains write access" design
+  decision below before extending this to DNS/TLS/CT.
 
 ## Design decisions worth preserving
 
@@ -106,6 +118,16 @@ Keep that split when adding new checks or refactoring `main.rs`.
   came from a real live run where a vague `Skip` message was undiagnosable
   until this fix landed. Apply the same pattern anywhere else a network
   error gets turned into a report string.
+- **Outpost never gains write access to the thing it's checking, full stop.**
+  `fix.rs` exists specifically because this boundary matters: it can only
+  propose a change as a pull request a human has to merge, and only for
+  headers, because that's the one finding with a config file (`_headers`)
+  simple enough to patch safely without risking someone's actual server/DNS/
+  CA config. Don't extend `fix` to DNS, TLS, or CT, and don't add a mode that
+  applies a header change directly without a PR -- a checker with the power
+  to change what it's checking stops being a trustworthy, independent
+  auditor, and becomes the single highest-value target in the whole system
+  (the same failure mode the CT check exists to catch in the first place).
 - **The demo `outpost.toml` at the repo root scans `cloudflare.com` only --
   don't add `github.com` back to it.** It was there originally and got
   removed after a live run confirmed github.com genuinely has no DNSSEC
