@@ -76,15 +76,23 @@ Keep that split when adding new checks or refactoring `main.rs`.
 - `src/headers_file.rs` -- pure patcher for the Netlify/Cloudflare Pages
   `_headers` file format. `apply_fixes(existing, fixes)` parses into
   path-pattern blocks, patches only the `/*` (site-wide) block, and leaves
-  every other block byte-for-byte untouched. No I/O; `fix.rs` does the
-  reading and writing.
-- `src/fix.rs` -- `outpost fix` orchestration. `plan()` is pure-ish (reads a
-  file, computes new contents, never writes) and safe to call unconditionally;
-  `apply_and_open_pr()` is the only function in the crate that writes to disk,
-  shells out to `git`, or calls GitHub's API, and `main.rs` only calls it when
-  the user passed `--yes`. Deliberately scoped to headers only -- see the
-  module doc comment and the "Outpost never gains write access" design
-  decision below before extending this to DNS/TLS/CT.
+  every other block byte-for-byte untouched. No I/O; `fix.rs` does the one
+  read.
+- `src/fix.rs` -- `outpost fix`. `plan()` reads the existing `_headers` file
+  (if any) and computes the patched contents; that's the entire module.
+  Deliberately, permanently read-only: no git, no GitHub API, no write to
+  disk. An earlier version wrote the file, committed it, and opened a pull
+  request via GitHub's API behind a `--yes` flag -- it worked, but the
+  GitHub API leg turned out to be a bad edge for a small, easily-doubted
+  tool to ship with: a token/permissions issue on one real test account
+  produced a bare, confusing 404 with no reliable local way to diagnose it
+  over a remote session, and a security tool with an unreliable "trust me,
+  click yes" step erodes trust in the rest of it faster than not having the
+  feature at all. Removed rather than left half-working. If this comes
+  back, it should be new, not a revert -- rethink the trust story (e.g. a
+  local git-format-patch/diff file the user applies themselves, no network
+  call at all) rather than reintroducing a bearer-token REST call as the
+  last mile.
 
 ## Design decisions worth preserving
 
@@ -119,15 +127,18 @@ Keep that split when adding new checks or refactoring `main.rs`.
   until this fix landed. Apply the same pattern anywhere else a network
   error gets turned into a report string.
 - **Outpost never gains write access to the thing it's checking, full stop.**
-  `fix.rs` exists specifically because this boundary matters: it can only
-  propose a change as a pull request a human has to merge, and only for
-  headers, because that's the one finding with a config file (`_headers`)
-  simple enough to patch safely without risking someone's actual server/DNS/
-  CA config. Don't extend `fix` to DNS, TLS, or CT, and don't add a mode that
-  applies a header change directly without a PR -- a checker with the power
-  to change what it's checking stops being a trustworthy, independent
-  auditor, and becomes the single highest-value target in the whole system
-  (the same failure mode the CT check exists to catch in the first place).
+  `fix.rs` exists specifically because this boundary matters: it computes
+  and prints the exact fix for headers -- the one finding with a config
+  file (`_headers`) simple enough to patch safely -- and stops there. It
+  never writes the file, never touches git, never calls a network API to
+  act on your behalf. Don't extend `fix` to DNS, TLS, or CT, and don't add
+  a mode that writes anything, opens anything, or calls out to git/GitHub
+  on the user's behalf -- a checker with the power to change what it's
+  checking stops being a trustworthy, independent auditor, and becomes the
+  single highest-value target in the whole system (the same failure mode
+  the CT check exists to catch in the first place). This was tried once
+  (`fix.rs`'s prior `--yes` mode); see that entry in the module map above
+  for why it was removed instead of debugged further.
 - **The demo `outpost.toml` at the repo root scans `cloudflare.com` only --
   don't add `github.com` back to it.** It was there originally and got
   removed after a live run confirmed github.com genuinely has no DNSSEC

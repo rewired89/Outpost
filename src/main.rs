@@ -56,11 +56,11 @@ enum Command {
         #[arg(long)]
         json: bool,
     },
-    /// Find fixable HTTP header issues for a domain and propose the exact
-    /// change as a pull request against a `_headers` file (Netlify /
-    /// Cloudflare Pages format). Dry-run by default: prints the diff and
-    /// changes nothing until `--yes` is passed. Never touches DNS, TLS, or
-    /// CT findings -- there's no safe repo-file fix for those.
+    /// Find fixable HTTP header issues for a domain and print the exact
+    /// change needed for a `_headers` file (Netlify / Cloudflare Pages
+    /// format). Read-only: only ever prints a diff, never writes anything.
+    /// Never touches DNS, TLS, or CT findings -- there's no safe repo-file
+    /// fix for those.
     Fix {
         domain: String,
         #[arg(long)]
@@ -70,15 +70,6 @@ enum Command {
         repo_path: PathBuf,
         #[arg(long, default_value = "_headers")]
         headers_file: String,
-        /// Actually write the file, push a branch, and open a pull request.
-        /// Without this flag, outpost only prints what it would change.
-        #[arg(long)]
-        yes: bool,
-        /// owner/repo on GitHub to open the pull request against. Required with --yes.
-        #[arg(long)]
-        github_repo: Option<String>,
-        #[arg(long, default_value = "main")]
-        base_branch: String,
     },
 }
 
@@ -201,9 +192,6 @@ async fn main() -> ExitCode {
             config,
             repo_path,
             headers_file,
-            yes,
-            github_repo,
-            base_branch,
         } => {
             let effective = match &config {
                 Some(path) => match config::Config::load(path) {
@@ -276,50 +264,11 @@ async fn main() -> ExitCode {
             }
             println!("\n--- before ---\n{}", plan.before);
             println!("--- after ---\n{}", plan.after);
-
-            if !yes {
-                println!(
-                    "Dry run only -- no files changed, no branch pushed, no pull request opened."
-                );
-                println!(
-                    "Re-run with --yes --github-repo owner/repo to open a pull request with this exact change."
-                );
-                return ExitCode::SUCCESS;
-            }
-
-            let Some(github_repo) = github_repo else {
-                eprintln!("--yes requires --github-repo owner/repo");
-                return ExitCode::from(2);
-            };
-            let Some((owner, repo)) = github_repo.split_once('/') else {
-                eprintln!("--github-repo must be in owner/repo form");
-                return ExitCode::from(2);
-            };
-            let token = match std::env::var("GITHUB_TOKEN") {
-                Ok(t) => t,
-                Err(_) => {
-                    eprintln!("GITHUB_TOKEN environment variable is required with --yes");
-                    return ExitCode::from(2);
-                }
-            };
-
-            let target = fix::GitHubTarget {
-                owner: owner.to_string(),
-                repo: repo.to_string(),
-                base_branch,
-                token,
-            };
-
-            match fix::apply_and_open_pr(&repo_path, &plan, &domain, &target).await {
-                Ok(pr_url) => {
-                    println!("Opened: {pr_url}");
-                    ExitCode::SUCCESS
-                }
-                Err(e) => {
-                    eprintln!("failed to open pull request: {e}");
-                    ExitCode::from(2)
-                }
-            }
+            println!(
+                "\nNo files were changed -- outpost fix only ever prints what to change. \
+                 Apply it yourself and commit it however you normally would."
+            );
+            ExitCode::SUCCESS
         }
     }
 }

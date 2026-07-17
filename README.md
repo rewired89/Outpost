@@ -99,11 +99,7 @@ from and written to (default `outpost.state.json`).
 ### Proposing a fix, not just reporting one
 
 ```sh
-# Dry run: shows exactly what would change, touches nothing.
 outpost fix example.com --repo-path .
-
-# Opens a real pull request with that exact change.
-GITHUB_TOKEN=... outpost fix example.com --repo-path . --yes --github-repo you/example-site
 ```
 
 `outpost fix` only covers HTTP security headers, and only for sites using a
@@ -112,14 +108,16 @@ deliberate, narrow scope: Outpost has no write access to your server, your
 DNS, or your certificate authority, and it never will -- a checker with the
 power to change what it's checking stops being a trustworthy, independent
 auditor. Headers are the one finding with a config file simple and
-unambiguous enough to patch safely and propose as an ordinary,
-human-reviewed pull request. DNS, TLS, and CT findings still just get plain
-guidance text in the report; there's no safe automated fix for those.
+unambiguous enough to compute an exact patch for. DNS, TLS, and CT findings
+still just get plain guidance text in the report; there's no safe automated
+fix for those either.
 
-`fix` is dry-run by default -- it prints the full diff and changes nothing.
-Add `--yes` and `--github-repo owner/repo` (with a `GITHUB_TOKEN` in the
-environment) to actually write the file, push a branch, and open the pull
-request. It never merges anything.
+`fix` is entirely read-only: it fetches the domain, compares the live
+headers against your configured requirements, and prints exactly what to
+add or change in `_headers` -- header name, value, and why. It never writes
+the file, never touches git, and never calls any network API beyond
+fetching the domain itself. Apply the change and commit it however you
+normally would.
 
 ### Exit codes
 
@@ -250,8 +248,8 @@ src/
   ct.rs           Certificate Transparency check (crt.sh) + baseline state persistence
   headers.rs      HTTP security header check (reqwest) + suggest_fixes() for `fix`
   headers_file.rs pure patcher for the Netlify/Cloudflare Pages `_headers` file format
-  fix.rs          `outpost fix` orchestration: plan a change, then (only with --yes)
-                  write it, commit, push, and open a pull request via GitHub's API
+  fix.rs          `outpost fix`: computes the exact _headers patch, read-only, no
+                  git, no network calls beyond fetching the domain itself
   report.rs       shared result types, human-readable + JSON rendering, exit code logic
 ```
 

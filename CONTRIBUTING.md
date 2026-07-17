@@ -51,7 +51,8 @@ advisory instead (repository's "Security" tab -> "Report a vulnerability").
 New checks, new config fields, and new output formats are all reasonable
 things to propose. One boundary that isn't up for debate without a very
 strong reason: Outpost never gains write access to the domain, DNS, or
-certificate authority it's checking -- see the "Outpost never gains write
-access" note in `CLAUDE.md` for why. `outpost fix` proposing a pull request
-for header changes is the one deliberate, narrow exception, not a precedent
-for more write access elsewhere.
+certificate authority it's checking, and never writes, commits, or pushes
+anything on the user's behalf either -- `outpost fix` computes and prints
+the exact header fix and stops there. See the "Outpost never gains write
+access" note in `CLAUDE.md` for why, including why an earlier
+pull-request-opening mode was removed rather than kept.
